@@ -1,10 +1,16 @@
 #include <Arduino.h>
-#include <EEPROM.h>
 #include <Wire.h>
+#include <EEPROM.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 #define TdsSensorPin 34
 #define VREF 3.3  // analog reference voltage (V) ADC
 #define SCOUNT 20 // sum of sample point
+#define oneWireBus 33   // OneWire bus pin
+
+OneWire oneWire(oneWireBus);
+DallasTemperature sensors(&oneWire);
 
 int analogBuffer[SCOUNT]; // store the analog value in the array, read from ADC
 int analogBufferTemp[SCOUNT];
@@ -15,7 +21,7 @@ float averageVoltage = 0;
 float tdsValue = 0;
 
 // Change this using temperature water sensor
-float temperature = 25; // current temperature for compensation
+// float temperature = 25; // current temperature for compensation
 
 // median filtering algorithm
 int getMedianNum(int bArray[], int iFilterLen)
@@ -55,6 +61,9 @@ void setup()
 
 void loop()
 {
+  sensors.requestTemperatures();
+  float temperature = sensors.getTempCByIndex(0);
+
   static unsigned long analogSampleTimepoint = millis();
   if (millis() - analogSampleTimepoint > 50U)
   { // every 40 milliseconds,read the analog value from the ADC
@@ -87,8 +96,10 @@ void loop()
 
     // convert voltage value to tds value
     float KValue = 0.76;
+    // float KValue = 1;
     tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * KValue;
     float raw_adc = analogRead(TdsSensorPin);
+    Serial.printf("Temperature: %.2fC   ", temperature);
     Serial.printf("ADC %.2f   ", raw_adc);
     Serial.printf("Voltage: %.2fV", averageVoltage);
     Serial.printf("  TDS Value: %.2f \n", tdsValue);

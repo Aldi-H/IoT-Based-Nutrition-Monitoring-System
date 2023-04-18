@@ -12,6 +12,8 @@
 #define VREF 3.3  // analog reference voltage (V) ADC
 #define SCOUNT 20 // sum of sample point
 #define oneWireBus 33   // OneWire bus pin
+#define LED_BUILTIN 22  // Built-in LED pin number
+#define SSR_Pin 26    // Solid State Relay pin number
 
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
@@ -27,13 +29,18 @@ float averageVoltage = 0;
 float tdsValue = 0;
 float temperature = 0;
 
+unsigned long prevTime_T1 = millis();
+
+long timePointLED = 1000;   // blink LED every 1s
+
+int LED_BUILTIN_State = LOW;
+
 // Change this using temperature water sensor
 // float temperature = 25; // current temperature for compensation
 
 // Try to connect to wifi
 void StartWifi() {
   WiFi.begin(SSID, SSID_PASSWORD);
-  // thing.add_wifi(SSID, SSID_PASSWORD);
 
   Serial.printf("Connecting to %s\n ", SSID);
   while (WiFi.status() != WL_CONNECTED) {
@@ -119,22 +126,33 @@ void readTDS() {
 void setup() {
   Serial.begin(115200);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(SSR_Pin, OUTPUT);
+
   StartWifi();
   delay(1000);
 
-  readTDS();
-
-  thing["SensorRead"] >> [](pson& out) {
+  thing["SensorRead"] >> [](pson &out)
+  {
+    readTDS();
     out["TDS"] = tdsValue;
     out["Temperature"] = temperature;
   };
-
-  // pinMode(22, OUTPUT);
-
-  // thing["GPIO_16"] << digitalPin(22);
 }
 
 void loop() {
   thing.handle();
   readTDS();
+
+  unsigned long currentTime = millis();
+
+  // Blink Internal LED every 1s
+  if (currentTime - prevTime_T1 > timePointLED) {
+    LED_BUILTIN_State = !LED_BUILTIN_State;
+    digitalWrite(LED_BUILTIN, LED_BUILTIN_State);
+
+    prevTime_T1 = currentTime;
+  }
+  
+
 }
